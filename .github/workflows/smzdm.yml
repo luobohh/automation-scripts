@@ -45,16 +45,29 @@ jobs:
           node smzdm/send_summary.js
 
           # --- 以下是新增的外挂推送步骤 ---
-      - name: PushPlus Notify (Custom)
-        if: always() # 确保前面的任务报错了也能发送通知
+      - name: Feishu Bot Notify
+        if: always() # 即使签到报错也要发通知
         run: |
-          # 这一步会尝试把运行记录的最后 20 行抓出来发给你
-          echo "正在抓取日志并推送..."
-          curl -X POST http://www.pushplus.plus/send \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"token\": \"${{ secrets.PUSH_PLUS_TOKEN }}\",
-              \"title\": \"SMZDM 运行提醒\",
-              \"content\": \"脚本执行完成。具体收益请点击 Actions 日志查看。\",
-              \"template\": \"html\"
-            }"
+          curl -X POST '${{ secrets.FEISHU_WEBHOOK }}' \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "msg_type": "post",
+            "content": {
+              "post": {
+                "zh_cn": {
+                  "title": "什么值得买自动任务报告",
+                  "content": [
+                    [{
+                      "tag": "text",
+                      "text": "所有脚本已执行完毕。由于飞书不支持超长日志，具体收益请直接点击 GitHub Actions 查看结果。"
+                    }],
+                    [{
+                      "tag": "a",
+                      "text": "点击查看详细运行日志",
+                      "href": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }]
+                  ]
+                }
+              }
+            }
+          }'
