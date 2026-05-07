@@ -45,8 +45,25 @@ jobs:
           node smzdm/send_summary.js
 
           # --- 以下是新增的外挂推送步骤 ---
+      - name: Run SMZDM and Capture Output
+        id: run_script
+        run: |
+          # 运行脚本并记录所有输出到 logs.txt
+          node scripts/smzdm.js > logs.txt 2>&1 || true
+          cat logs.txt
+          
+          # 提取包含关键结果的行（过滤掉冗余代码，只看结果）
+          # 匹配：成功、失败、奖、积分、碎银子、经验
+          RESULT=$(grep -E "成功|失败|奖|分|银|经验" logs.txt | tail -n 15 || echo "未抓取到关键结果，请检查日志")
+          
+          # 处理换行符，防止飞书接口报错
+          RESULT_CLEAN=$(echo "$RESULT" | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "SUMMARY=$RESULT_CLEAN" >> $GITHUB_ENV
+        env:
+          SMZDM_COOKIE: ${{ secrets.SMZDM_COOKIE }}
+
       - name: Feishu Bot Notify
-        if: always() # 即使签到报错也要发通知
+        if: always()
         run: |
           curl -X POST '${{ secrets.FEISHU_WEBHOOK }}' \
           -H 'Content-Type: application/json' \
@@ -55,15 +72,15 @@ jobs:
             "content": {
               "post": {
                 "zh_cn": {
-                  "title": "什么值得买自动任务报告",
+                  "title": "SMZDM 签到实况报告",
                   "content": [
                     [{
                       "tag": "text",
-                      "text": "所有脚本已执行完毕。由于飞书不支持超长日志，具体收益请直接点击 GitHub Actions 查看结果。"
+                      "text": "📋 关键结果如下：\n${{ env.SUMMARY }}"
                     }],
                     [{
                       "tag": "a",
-                      "text": "点击查看详细运行日志",
+                      "text": "➡️ 查看完整日志",
                       "href": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }]
                   ]
