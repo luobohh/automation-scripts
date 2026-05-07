@@ -43,3 +43,16 @@ jobs:
           node smzdm/smzdm_testing.js
           echo "=== 发送任务汇总通知 ==="
           node smzdm/send_summary.js
+
+          # --- 以下是新增的外挂推送步骤 ---
+      - name: PushPlus Notify (Custom)
+        if: always() # 确保前面的任务报错了也能发送通知
+        run: |
+          curl -X POST http://www.pushplus.plus/send \
+            -H "Content-Type: application/json" \
+            -d '{
+              "token": "${{ secrets.PUSH_PLUS_TOKEN }}",
+              "title": "什么值得买全任务报告",
+              "content": "脚本已运行完毕。如果 Server 酱 400 报错，请直接登录 GitHub Actions 查看 Working 步骤下的详细日志。",
+              "template": "html"
+            }'
